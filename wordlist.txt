@@ -49,4 +49,4 @@ CGC
 RLP
 UTF
 uri
-KiB
+MiB
