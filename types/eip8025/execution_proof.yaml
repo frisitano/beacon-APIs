@@ -1,17 +1,8 @@
 EIP8025:
-  PublicInput:
+  ExecutionProofEnvelope:
     type: object
-    description: "Public input for execution proof verification"
-    required: [new_payload_request_root]
-    properties:
-      new_payload_request_root:
-        $ref: '../primitive.yaml#/Root'
-        description: "Root of the NewPayloadRequest being proven"
-
-  ExecutionProof:
-    type: object
-    description: "Unsigned execution proof for stateless validation"
-    required: [proof_data, proof_type, public_input]
+    description: "Execution proof envelope binding opaque proof bytes to a beacon block, as propagated on the `execution_proof` gossip topic"
+    required: [proof_data, proof_type, beacon_block_root]
     properties:
       proof_data:
         type: string
@@ -22,19 +13,20 @@ EIP8025:
       proof_type:
         $ref: '../primitive.yaml#/Uint8'
         description: "Type identifier for the proof system"
-      public_input:
-        $ref: '#/EIP8025/PublicInput'
+      beacon_block_root:
+        $ref: '../primitive.yaml#/Root'
+        description: "Root of the beacon block whose execution payload is proven"
 
-  SignedExecutionProof:
+  SignedExecutionProofEnvelope:
     type: object
-    description: "Execution proof signed by a validator"
+    description: "Execution proof envelope signed by a validator"
     required: [message, validator_index, signature]
     properties:
       message:
-        $ref: '#/EIP8025/ExecutionProof'
+        $ref: '#/EIP8025/ExecutionProofEnvelope'
       validator_index:
         $ref: '../primitive.yaml#/Uint64'
-        description: "Index of the validator who signed this proof"
+        description: "Index of the validator who signed this envelope"
       signature:
         $ref: '../primitive.yaml#/Signature'
-        description: "BLS signature over the execution proof"
+        description: "BLS signature over the execution proof envelope"

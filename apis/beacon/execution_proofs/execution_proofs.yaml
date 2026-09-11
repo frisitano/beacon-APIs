@@ -1,15 +1,18 @@
 post:
   operationId: submitExecutionProofs
-  summary: Submit signed execution proofs
+  summary: Submit signed execution proof envelopes
   description: |
-    Receives validator-signed execution proofs (typically from a validator client).
-    The beacon node verifies each proof's BLS signature, requests the proof engine
-    to validate the proof against the associated `NewPayloadRequest`, stores accepted
-    proofs, and broadcasts them on the `execution_proof` gossip topic.
+    Receives validator-signed execution proof envelopes (typically from a validator client).
+    The beacon node verifies each envelope exactly as it would from the `execution_proof`
+    gossip topic (BLS signature, the signing validator is active at the referenced block, and
+    the proof engine verifies the reconstructed execution proof), publishes accepted envelopes
+    on the `execution_proof` gossip topic, and caches them.
 
-    Proofs whose proof engine verification status is `VALID` or `ACCEPTED` are gossiped.
-    Proofs reported as `INVALID` cause a `400 Bad Request` response. `SYNCING` and `NOT_SUPPORTED`
-    proofs are ignored.
+    A `200` response means every envelope is on the network, either published by this request or
+    already known. Envelopes that gossip would drop (invalid signature, unsupported proof type,
+    proof-engine rejection, unknown block, and similar) are reported per index in a `400`
+    response; the remaining envelopes in the batch are still published. A proof-engine or
+    beacon-node fault returns `500`.
 
     Beacon nodes running without an attached proof engine MUST return `501 Not Implemented`.
   tags:
@@ -19,28 +22,27 @@ post:
     content:
       application/json:
         schema:
-          type: object
-          required: [proofs]
-          properties:
-            proofs:
-              type: array
-              items:
-                $ref: '../../../beacon-node-oapi.yaml#/components/schemas/EIP8025.SignedExecutionProof'
+          type: array
+          items:
+            $ref: '../../../beacon-node-oapi.yaml#/components/schemas/EIP8025.SignedExecutionProofEnvelope'
       application/octet-stream:
         schema:
-          description: "SSZ serialized `List[SignedExecutionProof, MAX_EXECUTION_PROOFS_PER_PAYLOAD]` bytes. Use Content-Type header to choose this request type"
+          description: "SSZ serialized `List[SignedExecutionProofEnvelope, MAX_EXECUTION_PROOFS_PER_PAYLOAD]` bytes. Use Content-Type header to choose this request type"
   responses:
     "200":
-      description: "Proofs received and validated successfully"
+      description: "Envelopes received; every envelope is on the network, published now or already known"
     "400":
-      description: "One or more proofs failed validation"
+      description: "One or more execution proof envelopes failed validation; failures are listed by index"
       content:
         application/json:
           schema:
-            $ref: "../../../beacon-node-oapi.yaml#/components/schemas/ErrorMessage"
+            $ref: "../../../beacon-node-oapi.yaml#/components/schemas/IndexedErrorMessage"
           example:
             code: 400
-            message: "Proof validation failed"
+            message: "error processing execution proofs"
+            failures:
+              - index: 0
+                message: "Invalid proof"
     "500":
       $ref: '../../../beacon-node-oapi.yaml#/components/responses/InternalError'
     "501":
